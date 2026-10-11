@@ -31,6 +31,7 @@ public class LoginView extends JFrame {
         add(btnCerrarSesion);
 
         btnCerrarSesion.setEnabled(false);
+        getRootPane().setDefaultButton(btnIngresar);
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
     }
 
