@@ -18,6 +18,15 @@ public class UsuarioDAO {
     }
 
     public boolean registrarUsuario(Usuario usuario) throws SQLException {
+        if (usuario == null
+        || usuario.getNombre() == null
+        || usuario.getNombre().trim().isEmpty()
+        || usuario.getNombreUsuario() == null
+        || usuario.getNombreUsuario().trim().isEmpty()
+        || usuario.getContrasenaHash() == null
+        || usuario.getContrasenaHash().trim().isEmpty()) {
+    return false;
+}
         String sql = "INSERT INTO usuarios (nombre, nombre_usuario, contrasena_hash) VALUES (?, ?, ?)";
 
         try (Connection conexion = ConexionBD.obtenerConexion();
