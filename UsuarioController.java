@@ -48,6 +48,9 @@ public class UsuarioController {
     }
 
     public boolean iniciarSesion(String nombreUsuario, String contrasena) {
+        if (haySesionActiva()){
+            return false;
+        }
         if (nombreUsuario == null || nombreUsuario.trim().isEmpty()
                 || contrasena == null || contrasena.isEmpty()) {
             return false;
