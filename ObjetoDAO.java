@@ -96,6 +96,42 @@ public class ObjetoDAO {
         return null;
     }
 
+
+    public List<Objeto> consultarPorEstado(String estado) {
+        List<Objeto> objetos = new ArrayList<>();
+
+        if (!Objeto.ESTADO_DISPONIBLE.equals(estado)
+                && !Objeto.ESTADO_DEVUELTO.equals(estado)) {
+            return objetos;
+        }
+
+        String sql = "SELECT id, nombre, descripcion, lugar_encontrado, "
+                + "fecha_encontrado, estado "
+                + "FROM objetos WHERE estado = ? ORDER BY id";
+
+        try (Connection conexion = ConexionBD.obtenerConexion();
+             PreparedStatement statement = conexion.prepareStatement(sql)) {
+
+            statement.setString(1, estado);
+
+            try (ResultSet resultado = statement.executeQuery()) {
+                while (resultado.next()) {
+                    objetos.add(crearObjeto(resultado));
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error al consultar objetos por estado: "
+                    + e.getMessage());
+        }
+
+        return objetos;
+    }
+
+
+
+
+
     public boolean actualizarEstado(int id, String nuevoEstado) {
         String sql = "UPDATE objetos SET estado = ? WHERE id = ?";
         try (Connection conexion = ConexionBD.obtenerConexion();
