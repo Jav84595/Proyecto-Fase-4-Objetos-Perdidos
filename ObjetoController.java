@@ -33,6 +33,16 @@ public class ObjetoController {
 
     public List<Objeto> consultarObjetos() { return objetoDAO.consultarTodos(); }
 
+
+    public List<Objeto> consultarNoReclamados() {
+        return objetoDAO.consultarPorEstado(Objeto.ESTADO_DISPONIBLE);
+    }
+
+    public List<Objeto> consultarDevueltos() {
+        return objetoDAO.consultarPorEstado(Objeto.ESTADO_DEVUELTO);
+    }
+
+
     public List<Objeto> buscarObjetos(String texto) {
         if (texto == null || texto.trim().isEmpty()) return consultarObjetos();
         return objetoDAO.buscar(texto.trim());
