@@ -33,6 +33,17 @@ public class DevolucionDAO {
     }
 
     public boolean registrarDevolucion(Devolucion devolucion) {
+        // La capa de persistencia tambien valida sus entradas: puede invocarse
+        // desde otros controladores o pruebas sin pasar por la interfaz.
+        if (devolucion == null || devolucion.getObjetoId() <= 0
+                || devolucion.getNombrePropietario() == null
+                || devolucion.getNombrePropietario().trim().isEmpty()
+                || devolucion.getInformacionVerificacion() == null
+                || devolucion.getInformacionVerificacion().trim().isEmpty()
+                || devolucion.getFechaDevolucion() == null
+                || devolucion.getFechaDevolucion().isAfter(LocalDate.now())) {
+            return false;
+        }
         String consultarObjeto = "SELECT estado FROM objetos WHERE id = ?";
         String insertarDevolucion =
                 "INSERT INTO devoluciones "
@@ -57,8 +68,8 @@ public class DevolucionDAO {
 
                 try (PreparedStatement insercion = conexion.prepareStatement(insertarDevolucion)) {
                     insercion.setInt(1, devolucion.getObjetoId());
-                    insercion.setString(2, devolucion.getNombrePropietario());
-                    insercion.setString(3, devolucion.getInformacionVerificacion());
+                    insercion.setString(2, devolucion.getNombrePropietario().trim());
+                    insercion.setString(3, devolucion.getInformacionVerificacion().trim());
                     insercion.setString(4, devolucion.getFechaDevolucion().toString());
                     if (insercion.executeUpdate() != 1) {
                         conexion.rollback();
@@ -114,6 +125,7 @@ public class DevolucionDAO {
     }
 
     public Devolucion buscarPorId(int id) {
+        if (id <= 0) return null;
         String sql =
                 "SELECT id, objeto_id, nombre_propietario, informacion_verificacion, fecha_devolucion "
                 + "FROM devoluciones WHERE id = ?";
