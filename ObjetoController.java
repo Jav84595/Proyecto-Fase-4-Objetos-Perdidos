@@ -15,6 +15,13 @@ public class ObjetoController {
         registroView.agregarRegistroListener(e -> registrarDesdeVista());
         consultaView.agregarBusquedaListener(e -> buscarDesdeVista());
         consultaView.agregarConsultaListener(e -> consultarDesdeVista());
+
+        consultaView.agregarDisponiblesListener(
+                e -> consultaView.mostrarObjetos(consultarNoReclamados()));
+
+        consultaView.agregarDevueltosListener(
+                e -> consultaView.mostrarObjetos(consultarDevueltos()));
+
     }
 
     public boolean registrarObjeto(String nombre, String descripcion, String lugar, String fecha) {
