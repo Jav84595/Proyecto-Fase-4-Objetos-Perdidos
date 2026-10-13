@@ -34,11 +34,21 @@ public class Main {
 
             DevolucionView devolucionView = new DevolucionView();
             DevolucionDAO devolucionDAO = new DevolucionDAO();
-            new DevolucionController(
+            DevolucionController devolucionController = new DevolucionController(
                     objetoController,
                     devolucionDAO,
-                    devolucionView
+                    devolucionView,
+                    usuarioController::getUsuarioActivo
             );
+
+            ConsultaDevolucionesView historialView = new ConsultaDevolucionesView();
+            historialView.agregarActualizarListener(e ->
+                    historialView.mostrarDevoluciones(devolucionController.consultarDevoluciones()));
+            devolucionView.agregarHistorialListener(e -> {
+                historialView.mostrarDevoluciones(devolucionController.consultarDevoluciones());
+                historialView.setLocationRelativeTo(devolucionView);
+                historialView.setVisible(true);
+            });
 
             registroUsuarioView.setLocation(20, 20);
             loginView.setLocation(390, 20);
@@ -58,6 +68,7 @@ public class Main {
                     registroObjetoView.setVisible(sesionActiva);
                     consultaObjetoView.setVisible(sesionActiva);
                     devolucionView.setVisible(sesionActiva);
+                    if (!sesionActiva) historialView.setVisible(false);
                     sesionAnterior[0] = sesionActiva;
                 }
             });

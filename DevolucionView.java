@@ -14,11 +14,12 @@ public class DevolucionView extends JFrame {
     private final JTextField txtPropietario = new JTextField();
     private final JTextField txtVerificacion = new JTextField();
     private final JButton btnDevolver = new JButton("Registrar devolución");
+    private final JButton btnHistorial = new JButton("Ver historial");
 
     public DevolucionView() {
         setTitle("Devolución de objeto");
-        setSize(440, 230);
-        setLayout(new GridLayout(4, 2, 5, 5));
+        setSize(440, 270);
+        setLayout(new GridLayout(5, 2, 5, 5));
         add(new JLabel("ID del objeto:"));
         add(txtObjetoId);
         add(new JLabel("Propietario:"));
@@ -27,6 +28,8 @@ public class DevolucionView extends JFrame {
         add(txtVerificacion);
         add(new JLabel());
         add(btnDevolver);
+        add(new JLabel());
+        add(btnHistorial);
 
         txtObjetoId.setToolTipText("Ingrese el ID numérico del objeto disponible.");
         txtPropietario.setToolTipText("Ingrese el nombre de quien reclama el objeto.");
@@ -79,6 +82,10 @@ public class DevolucionView extends JFrame {
                 "Verificacion del propietario - confirmacion del encargado",
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         return respuesta == JOptionPane.YES_OPTION;
+    }
+
+    public void agregarHistorialListener(ActionListener listener) {
+        btnHistorial.addActionListener(listener);
     }
 
     public void agregarDevolucionListener(ActionListener listener) {

@@ -1,15 +1,18 @@
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class DevolucionController {
     private final ObjetoController objetoController;
     private final DevolucionDAO devolucionDAO;
     private final DevolucionView view;
+    private final Supplier<Usuario> usuarioActual;
 
     public DevolucionController(
             ObjetoController objetoController,
             DevolucionDAO devolucionDAO,
-            DevolucionView view) {
+            DevolucionView view, Supplier<Usuario> usuarioActual) {
+        this.usuarioActual = usuarioActual;
         this.objetoController = objetoController;
         this.devolucionDAO = devolucionDAO;
         this.view = view;
@@ -31,7 +34,9 @@ public class DevolucionController {
     }
 
     public boolean registrarDevolucion(int objetoId, String propietario, String verificacion, boolean confirmado) {
-        if (!confirmado || esVacio(propietario) || !verificarPropietario(objetoId, verificacion)) {
+        Usuario responsable = usuarioActual == null ? null : usuarioActual.get();
+        if (responsable == null || !confirmado || esVacio(propietario)
+                || !verificarPropietario(objetoId, verificacion)) {
             return false;
         }
 
@@ -40,7 +45,8 @@ public class DevolucionController {
                 objetoId,
                 propietario.trim(),
                 verificacion.trim(),
-                LocalDate.now()
+                LocalDate.now(),
+                responsable.getNombreUsuario()
         );
         return devolucionDAO.registrarDevolucion(devolucion);
     }
@@ -58,6 +64,10 @@ public class DevolucionController {
     }
 
     private void registrarDesdeVista() {
+        if (usuarioActual == null || usuarioActual.get() == null) {
+            view.mostrarMensaje("Debe iniciar sesion para registrar devoluciones.");
+            return;
+        }
         String idIngresado = view.getObjetoId();
         String propietario = view.getPropietario();
         String verificacion = view.getVerificacion();
