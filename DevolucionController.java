@@ -27,7 +27,11 @@ public class DevolucionController {
     }
 
     public boolean registrarDevolucion(int objetoId, String propietario, String verificacion) {
-        if (esVacio(propietario) || !verificarPropietario(objetoId, verificacion)) {
+        return false; // La confirmacion explicita es obligatoria.
+    }
+
+    public boolean registrarDevolucion(int objetoId, String propietario, String verificacion, boolean confirmado) {
+        if (!confirmado || esVacio(propietario) || !verificarPropietario(objetoId, verificacion)) {
             return false;
         }
 
@@ -86,7 +90,12 @@ public class DevolucionController {
             return;
         }
 
-        boolean registrada = registrarDevolucion(objetoId, propietario, verificacion);
+        if (!view.confirmarVerificacion(objeto)) {
+            view.mostrarMensaje("Devolucion cancelada: no se confirmo la verificacion del reclamante.");
+            return;
+        }
+
+        boolean registrada = registrarDevolucion(objetoId, propietario, verificacion, true);
         view.mostrarMensaje(registrada
                 ? "Devolucion registrada correctamente. El objeto ahora esta DEVUELTO."
                 : "No se pudo registrar la devolucion. Compruebe que el objeto siga disponible.");

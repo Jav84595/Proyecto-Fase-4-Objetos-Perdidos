@@ -67,6 +67,20 @@ public class DevolucionView extends JFrame {
         return txtVerificacion.getText().trim();
     }
 
+    public boolean confirmarVerificacion(Objeto objeto) {
+        String detalle = "Objeto: " + objeto.getNombre()
+                + "\nDescripcion registrada: " + objeto.getDescripcion()
+                + "\nLugar: " + objeto.getLugarEncontrado()
+                + "\nFecha: " + objeto.getFechaEncontrado()
+                + "\n\nCompare estos datos con la informacion que proporciono el reclamante."
+                + "\nConfirme solo si verifico evidencia suficiente de propiedad."
+                + "\nNo muestre al reclamante los datos que debe demostrar conocer.";
+        int respuesta = JOptionPane.showConfirmDialog(this, detalle,
+                "Verificacion del propietario - confirmacion del encargado",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        return respuesta == JOptionPane.YES_OPTION;
+    }
+
     public void agregarDevolucionListener(ActionListener listener) {
         btnDevolver.addActionListener(listener);
     }
