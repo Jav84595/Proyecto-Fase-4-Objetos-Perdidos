@@ -10,13 +10,6 @@ public class ObjetoController {
     private final ConsultaObjetoView consultaView;
     private final BooleanSupplier autorizador;
 
-    // Constructor conservado para compatibilidad con el Main existente.
-    // La autorizacion efectiva se activara al conectar el segundo constructor desde Main.
-    public ObjetoController(RegistroObjetoView registroView,
-            ConsultaObjetoView consultaView, ObjetoDAO objetoDAO) {
-        this(registroView, consultaView, objetoDAO, () -> true);
-    }
-
     public ObjetoController(RegistroObjetoView registroView,
             ConsultaObjetoView consultaView, ObjetoDAO objetoDAO,
             BooleanSupplier autorizador) {
