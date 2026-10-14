@@ -1,6 +1,7 @@
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import javax.swing.JOptionPane;
 
 public class ObjetoController {
     private ObjetoDAO objetoDAO;
@@ -16,11 +17,13 @@ public class ObjetoController {
         consultaView.agregarBusquedaListener(e -> buscarDesdeVista());
         consultaView.agregarConsultaListener(e -> consultarDesdeVista());
 
+        consultaView.agregarDetalleListener(e -> mostrarDetalle());
+        consultaView.agregarEditarListener(e -> editarSeleccionado());
         consultaView.agregarDisponiblesListener(
-                e -> consultaView.mostrarObjetos(consultarNoReclamados()));
+                e -> consultaView.mostrarObjetos(consultarObjetos()));
 
         consultaView.agregarDevueltosListener(
-                e -> consultaView.mostrarObjetos(consultarDevueltos()));
+                e -> consultaView.mostrarObjetos(consultarObjetos()));
 
     }
 
@@ -59,11 +62,41 @@ public class ObjetoController {
         return id > 0 ? objetoDAO.buscarPorId(id) : null;
     }
 
+    public boolean modificarObjeto(int id, String nombre, String descripcion, String lugar, String fecha) {
+        if (!validarCampos(nombre, lugar, fecha) || id <= 0) return false;
+        try {
+            LocalDate parsed = LocalDate.parse(fecha.trim());
+            return objetoDAO.modificarDatos(id, nombre, descripcion, lugar, parsed);
+        } catch (DateTimeParseException e) { return false; }
+    }
+
+    private void mostrarDetalle() {
+        Objeto objeto = consultaView.getObjetoSeleccionado();
+        if (objeto == null) { consultaView.mostrarMensaje("Seleccione un objeto de la lista."); return; }
+        Objeto actual = buscarPorId(objeto.getId());
+        if (actual == null) { consultaView.mostrarMensaje("El objeto ya no existe."); return; }
+        JOptionPane.showMessageDialog(consultaView, actual.toString(), "Detalle del objeto", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void editarSeleccionado() {
+        Objeto seleccionado = consultaView.getObjetoSeleccionado();
+        if (seleccionado == null) { consultaView.mostrarMensaje("Seleccione un objeto de la lista."); return; }
+        Objeto actual = buscarPorId(seleccionado.getId());
+        if (actual == null) { consultaView.mostrarMensaje("El objeto ya no existe."); return; }
+        EditarObjetoView editor = new EditarObjetoView(consultaView, actual);
+        if (!editor.confirmar()) return;
+        if (modificarObjeto(actual.getId(), editor.getNombre(), editor.getDescripcion(), editor.getLugar(), editor.getFecha())) {
+            consultaView.mostrarObjetos(consultarObjetos());
+            consultaView.mostrarMensaje("Objeto actualizado correctamente.");
+        } else consultaView.mostrarMensaje("No se pudo actualizar. Verifique los campos y la fecha.");
+    }
+
     public boolean actualizarEstado(int id, String nuevoEstado) {
         if (id <= 0 || nuevoEstado == null) return false;
         String estado = nuevoEstado.trim().toUpperCase();
         if (!estado.equals(Objeto.ESTADO_DISPONIBLE)
                 && !estado.equals(Objeto.ESTADO_DEVUELTO)) return false;
+        if (Objeto.ESTADO_DEVUELTO.equals(estado)) return false;
         return buscarPorId(id) != null && objetoDAO.actualizarEstado(id, estado);
     }
 
@@ -87,7 +120,7 @@ public class ObjetoController {
     }
 
     private void buscarDesdeVista() {
-        consultaView.mostrarObjetos(buscarObjetos(consultaView.getTextoBusqueda()));
+        consultaView.mostrarObjetos(consultarObjetos());
     }
 
     private void consultarDesdeVista() {
