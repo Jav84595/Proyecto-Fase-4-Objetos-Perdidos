@@ -1,6 +1,5 @@
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 
 public class Main {
     public static void main(String[] args) {
@@ -29,7 +28,8 @@ public class Main {
             ObjetoController objetoController = new ObjetoController(
                     registroObjetoView,
                     consultaObjetoView,
-                    objetoDAO
+                    objetoDAO,
+                    usuarioController::autorizarOperacion
             );
 
             DevolucionView devolucionView = new DevolucionView();
@@ -58,21 +58,22 @@ public class Main {
 
             registroUsuarioView.setVisible(true);
             loginView.setVisible(true);
-            // Las operaciones protegidas no se muestran sin una sesion activa.
-            // Este control de interfaz debe complementarse con autorizacion
-            // en los controladores antes de considerar completo el requisito.
-            final boolean[] sesionAnterior = {false};
-            Timer controlSesion = new Timer(200, e -> {
-                boolean sesionActiva = usuarioController.haySesionActiva();
-                if (sesionActiva != sesionAnterior[0]) {
-                    registroObjetoView.setVisible(sesionActiva);
-                    consultaObjetoView.setVisible(sesionActiva);
-                    devolucionView.setVisible(sesionActiva);
-                    if (!sesionActiva) historialView.setVisible(false);
-                    sesionAnterior[0] = sesionActiva;
+            // Mantener los modulos protegidos ocultos hasta autenticar.
+            registroObjetoView.setVisible(false);
+            consultaObjetoView.setVisible(false);
+            devolucionView.setVisible(false);
+            historialView.setVisible(false);
+
+            // Reaccionar inmediatamente a los cambios de sesion.
+            usuarioController.agregarObservadorSesion(usuario -> {
+                boolean activa = usuario != null;
+                registroObjetoView.setVisible(activa);
+                consultaObjetoView.setVisible(activa);
+                devolucionView.setVisible(activa);
+                if (!activa) {
+                    historialView.setVisible(false);
                 }
             });
-            controlSesion.start();
         });
     }
 }

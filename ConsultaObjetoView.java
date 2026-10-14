@@ -35,10 +35,12 @@ public class ConsultaObjetoView extends JFrame {
         lista.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         add(new JScrollPane(lista), BorderLayout.CENTER); add(contador, BorderLayout.SOUTH);
         txtBusqueda.addActionListener(e -> filtrar());
-        btnBuscar.addActionListener(e -> filtrar());
+        // El controlador actualiza la lista y aplica los filtros al buscar.
         btnMostrarTodos.addActionListener(e -> { txtBusqueda.setText(""); criterio.setSelectedIndex(0); estado.setSelectedIndex(0); });
         btnMostrarDisponibles.addActionListener(e -> estado.setSelectedItem("DISPONIBLE"));
         btnMostrarDevueltos.addActionListener(e -> estado.setSelectedItem("DEVUELTO"));
+        criterio.addActionListener(e -> filtrar());
+        estado.addActionListener(e -> filtrar());
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
     }
     public String getTextoBusqueda() { return txtBusqueda.getText().trim(); }

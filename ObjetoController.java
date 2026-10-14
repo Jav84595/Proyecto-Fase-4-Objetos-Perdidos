@@ -1,84 +1,136 @@
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import javax.swing.JOptionPane;
 
 public class ObjetoController {
-    private ObjetoDAO objetoDAO;
-    private RegistroObjetoView registroView;
-    private ConsultaObjetoView consultaView;
+    private final ObjetoDAO objetoDAO;
+    private final RegistroObjetoView registroView;
+    private final ConsultaObjetoView consultaView;
+    private final BooleanSupplier autorizador;
 
+    // Constructor conservado para compatibilidad con el Main existente.
+    // La autorizacion efectiva se activara al conectar el segundo constructor desde Main.
     public ObjetoController(RegistroObjetoView registroView,
             ConsultaObjetoView consultaView, ObjetoDAO objetoDAO) {
+        this(registroView, consultaView, objetoDAO, () -> true);
+    }
+
+    public ObjetoController(RegistroObjetoView registroView,
+            ConsultaObjetoView consultaView, ObjetoDAO objetoDAO,
+            BooleanSupplier autorizador) {
         this.registroView = registroView;
         this.consultaView = consultaView;
         this.objetoDAO = objetoDAO;
+        this.autorizador = autorizador == null ? () -> false : autorizador;
+
         registroView.agregarRegistroListener(e -> registrarDesdeVista());
         consultaView.agregarBusquedaListener(e -> buscarDesdeVista());
         consultaView.agregarConsultaListener(e -> consultarDesdeVista());
-
         consultaView.agregarDetalleListener(e -> mostrarDetalle());
         consultaView.agregarEditarListener(e -> editarSeleccionado());
-        consultaView.agregarDisponiblesListener(
-                e -> consultaView.mostrarObjetos(consultarObjetos()));
+        consultaView.agregarDisponiblesListener(e -> mostrarTodosDesdeVista());
+        consultaView.agregarDevueltosListener(e -> mostrarTodosDesdeVista());
+    }
 
-        consultaView.agregarDevueltosListener(
-                e -> consultaView.mostrarObjetos(consultarObjetos()));
-
+    private boolean autorizado() {
+        return autorizador.getAsBoolean();
     }
 
     public boolean registrarObjeto(String nombre, String descripcion, String lugar, String fecha) {
-        if (!validarCampos(nombre, lugar, fecha)) return false;
+        if (!autorizado() || !validarCampos(nombre, lugar, fecha)) return false;
         try {
-            LocalDate fechaEncontrado = LocalDate.parse(fecha);
-            if (fechaEncontrado.isAfter(LocalDate.now())) return false;
-            Objeto objeto = new Objeto(0, nombre.trim(),
-                    descripcion == null ? "" : descripcion.trim(),
-                    lugar.trim(), fechaEncontrado);
-            return objetoDAO.guardar(objeto);
+            LocalDate encontrado = LocalDate.parse(fecha.trim());
+            if (encontrado.isAfter(LocalDate.now())) return false;
+            return objetoDAO.guardar(new Objeto(0, nombre.trim(),
+                    descripcion == null ? "" : descripcion.trim(), lugar.trim(), encontrado));
         } catch (DateTimeParseException e) {
             return false;
         }
     }
 
-    public List<Objeto> consultarObjetos() { return objetoDAO.consultarTodos(); }
-
+    public List<Objeto> consultarObjetos() {
+        return autorizado() ? objetoDAO.consultarTodos() : java.util.Collections.emptyList();
+    }
 
     public List<Objeto> consultarNoReclamados() {
-        return objetoDAO.consultarPorEstado(Objeto.ESTADO_DISPONIBLE);
+        return autorizado() ? objetoDAO.consultarPorEstado(Objeto.ESTADO_DISPONIBLE)
+                : java.util.Collections.emptyList();
     }
 
     public List<Objeto> consultarDevueltos() {
-        return objetoDAO.consultarPorEstado(Objeto.ESTADO_DEVUELTO);
+        return autorizado() ? objetoDAO.consultarPorEstado(Objeto.ESTADO_DEVUELTO)
+                : java.util.Collections.emptyList();
     }
 
-
     public List<Objeto> buscarObjetos(String texto) {
-        if (texto == null || texto.trim().isEmpty()) return consultarObjetos();
-        return objetoDAO.buscar(texto.trim());
+        if (!autorizado()) return java.util.Collections.emptyList();
+        return texto == null || texto.trim().isEmpty() ? consultarObjetos() : objetoDAO.buscar(texto.trim());
     }
 
     public Objeto buscarPorId(int id) {
-        return id > 0 ? objetoDAO.buscarPorId(id) : null;
+        return autorizado() && id > 0 ? objetoDAO.buscarPorId(id) : null;
     }
 
     public boolean modificarObjeto(int id, String nombre, String descripcion, String lugar, String fecha) {
-        if (!validarCampos(nombre, lugar, fecha) || id <= 0) return false;
+        if (!autorizado() || id <= 0 || !validarCampos(nombre, lugar, fecha)) return false;
         try {
-            LocalDate parsed = LocalDate.parse(fecha.trim());
-            return objetoDAO.modificarDatos(id, nombre, descripcion, lugar, parsed);
-        } catch (DateTimeParseException e) { return false; }
+            LocalDate encontrada = LocalDate.parse(fecha.trim());
+            if (encontrada.isAfter(LocalDate.now())) return false;
+            return objetoDAO.modificarDatos(id, nombre, descripcion, lugar, encontrada);
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    public boolean actualizarEstado(int id, String nuevoEstado) {
+        if (!autorizado() || id <= 0 || nuevoEstado == null) return false;
+        String estado = nuevoEstado.trim().toUpperCase(java.util.Locale.ROOT);
+        // El estado DEVUELTO solo puede establecerse desde DevolucionDAO.
+        if (!Objeto.ESTADO_DISPONIBLE.equals(estado)) return false;
+        // No hay transiciones directas permitidas desde este controlador.
+        return false;
+    }
+
+    private boolean validarCampos(String nombre, String lugar, String fecha) {
+        return nombre != null && !nombre.trim().isEmpty()
+                && lugar != null && !lugar.trim().isEmpty()
+                && fecha != null && !fecha.trim().isEmpty();
+    }
+
+    private boolean exigirSesionEnVista() {
+        if (autorizado()) return true;
+        consultaView.mostrarMensaje("Debe iniciar sesion para realizar esta operacion.");
+        return false;
+    }
+
+    private void registrarDesdeVista() {
+        if (!autorizado()) {
+            registroView.mostrarMensaje("Debe iniciar sesion para registrar objetos.");
+            return;
+        }
+        boolean registrado = registrarObjeto(registroView.getNombreObjeto(),
+                registroView.getDescripcion(), registroView.getLugar(), registroView.getFecha());
+        registroView.mostrarMensaje(registrado ? "Objeto registrado correctamente."
+                : "No se pudo registrar el objeto. Revise el nombre, lugar y fecha (AAAA-MM-DD). La fecha no puede ser futura.");
+        if (registrado) {
+            registroView.limpiarCampos();
+            consultaView.mostrarObjetos(consultarObjetos());
+        }
     }
 
     private void mostrarDetalle() {
-        Objeto objeto = consultaView.getObjetoSeleccionado();
-        if (objeto == null) { consultaView.mostrarMensaje("Seleccione un objeto de la lista."); return; }
-        Objeto actual = buscarPorId(objeto.getId());
+        if (!exigirSesionEnVista()) return;
+        Objeto seleccionado = consultaView.getObjetoSeleccionado();
+        if (seleccionado == null) { consultaView.mostrarMensaje("Seleccione un objeto de la lista."); return; }
+        Objeto actual = buscarPorId(seleccionado.getId());
         if (actual == null) { consultaView.mostrarMensaje("El objeto ya no existe."); return; }
         JOptionPane.showMessageDialog(consultaView, actual.toString(), "Detalle del objeto", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void editarSeleccionado() {
+        if (!exigirSesionEnVista()) return;
         Objeto seleccionado = consultaView.getObjetoSeleccionado();
         if (seleccionado == null) { consultaView.mostrarMensaje("Seleccione un objeto de la lista."); return; }
         Objeto actual = buscarPorId(seleccionado.getId());
@@ -88,42 +140,14 @@ public class ObjetoController {
         if (modificarObjeto(actual.getId(), editor.getNombre(), editor.getDescripcion(), editor.getLugar(), editor.getFecha())) {
             consultaView.mostrarObjetos(consultarObjetos());
             consultaView.mostrarMensaje("Objeto actualizado correctamente.");
-        } else consultaView.mostrarMensaje("No se pudo actualizar. Verifique los campos y la fecha.");
-    }
-
-    public boolean actualizarEstado(int id, String nuevoEstado) {
-        if (id <= 0 || nuevoEstado == null) return false;
-        String estado = nuevoEstado.trim().toUpperCase();
-        if (!estado.equals(Objeto.ESTADO_DISPONIBLE)
-                && !estado.equals(Objeto.ESTADO_DEVUELTO)) return false;
-        if (Objeto.ESTADO_DEVUELTO.equals(estado)) return false;
-        return buscarPorId(id) != null && objetoDAO.actualizarEstado(id, estado);
-    }
-
-    private boolean validarCampos(String nombre, String lugar, String fecha) {
-        return nombre != null && !nombre.trim().isEmpty()
-                && lugar != null && !lugar.trim().isEmpty()
-                && fecha != null && !fecha.trim().isEmpty();
-    }
-
-    private void registrarDesdeVista() {
-        boolean registrado = registrarObjeto(registroView.getNombreObjeto(),
-                registroView.getDescripcion(), registroView.getLugar(), registroView.getFecha());
-        registroView.mostrarMensaje(registrado
-                ? "Objeto registrado correctamente."
-                : "No se pudo registrar el objeto. Revise el nombre, lugar y fecha "
-                  + "(AAAA-MM-DD). La fecha no puede ser futura.");
-        if (registrado) {
-            registroView.limpiarCampos();
-            consultaView.mostrarObjetos(consultarObjetos());
+        } else {
+            consultaView.mostrarMensaje("No se pudo actualizar. Verifique los campos y la fecha.");
         }
     }
 
-    private void buscarDesdeVista() {
-        consultaView.mostrarObjetos(consultarObjetos());
-    }
-
-    private void consultarDesdeVista() {
-        consultaView.mostrarObjetos(consultarObjetos());
+    private void buscarDesdeVista() { mostrarTodosDesdeVista(); }
+    private void consultarDesdeVista() { mostrarTodosDesdeVista(); }
+    private void mostrarTodosDesdeVista() {
+        if (exigirSesionEnVista()) consultaView.mostrarObjetos(consultarObjetos());
     }
 }

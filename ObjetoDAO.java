@@ -144,19 +144,11 @@ public class ObjetoDAO {
         } catch (SQLException e) { System.err.println("Error al editar objeto: " + e.getMessage()); return false; }
     }
 
+    // El estado solo puede cambiar mediante la transaccion de DevolucionDAO.
+    // Se conserva la firma para compatibilidad con codigo existente.
+    // Ni DEVUELTO ni DISPONIBLE pueden asignarse directamente desde este DAO.
     public boolean actualizarEstado(int id, String nuevoEstado) {
-        // El estado DEVUELTO solo puede establecerse desde la transaccion de DevolucionDAO.
-        if (Objeto.ESTADO_DEVUELTO.equals(nuevoEstado)) return false;
-        String sql = "UPDATE objetos SET estado = ? WHERE id = ?";
-        try (Connection conexion = ConexionBD.obtenerConexion();
-             PreparedStatement statement = conexion.prepareStatement(sql)) {
-            statement.setString(1, nuevoEstado);
-            statement.setInt(2, id);
-            return statement.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Error al actualizar estado: " + e.getMessage());
-            return false;
-        }
+        return false;
     }
 
     private Objeto crearObjeto(ResultSet resultado) throws SQLException {

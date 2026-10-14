@@ -52,11 +52,13 @@ public class DevolucionController {
     }
 
     public List<Devolucion> consultarDevoluciones() {
-        return devolucionDAO.consultarTodas();
+        return usuarioActual != null && usuarioActual.get() != null
+                ? devolucionDAO.consultarTodas() : java.util.Collections.emptyList();
     }
 
     public Devolucion buscarDevolucionPorId(int id) {
-        return id > 0 ? devolucionDAO.buscarPorId(id) : null;
+        return usuarioActual != null && usuarioActual.get() != null && id > 0
+                ? devolucionDAO.buscarPorId(id) : null;
     }
 
     private static boolean esVacio(String valor) {
