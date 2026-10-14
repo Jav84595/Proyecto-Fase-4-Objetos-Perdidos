@@ -96,7 +96,57 @@ public class ObjetoDAO {
         return null;
     }
 
+
+    public List<Objeto> consultarPorEstado(String estado) {
+        List<Objeto> objetos = new ArrayList<>();
+
+        if (!Objeto.ESTADO_DISPONIBLE.equals(estado)
+                && !Objeto.ESTADO_DEVUELTO.equals(estado)) {
+            return objetos;
+        }
+
+        String sql = "SELECT id, nombre, descripcion, lugar_encontrado, "
+                + "fecha_encontrado, estado "
+                + "FROM objetos WHERE estado = ? ORDER BY id";
+
+        try (Connection conexion = ConexionBD.obtenerConexion();
+             PreparedStatement statement = conexion.prepareStatement(sql)) {
+
+            statement.setString(1, estado);
+
+            try (ResultSet resultado = statement.executeQuery()) {
+                while (resultado.next()) {
+                    objetos.add(crearObjeto(resultado));
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error al consultar objetos por estado: "
+                    + e.getMessage());
+        }
+
+        return objetos;
+    }
+
+
+
+
+
+    public boolean modificarDatos(int id, String nombre, String descripcion, String lugar, LocalDate fecha) {
+        if (id <= 0 || nombre == null || nombre.trim().isEmpty()
+                || lugar == null || lugar.trim().isEmpty() || fecha == null
+                || fecha.isAfter(LocalDate.now())) return false;
+        String sql = "UPDATE objetos SET nombre=?, descripcion=?, lugar_encontrado=?, fecha_encontrado=? WHERE id=?";
+        try (Connection c = ConexionBD.obtenerConexion(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, nombre.trim()); ps.setString(2, descripcion == null ? "" : descripcion.trim());
+            ps.setString(3, lugar.trim()); ps.setString(4, fecha.toString()); ps.setInt(5, id);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) { System.err.println("Error al editar objeto: " + e.getMessage()); return false; }
+    }
+
     public boolean actualizarEstado(int id, String nuevoEstado) {
+        // El estado DEVUELTO solo puede establecerse desde la transaccion de DevolucionDAO.
+        if (Objeto.ESTADO_DEVUELTO.equals(nuevoEstado)) return false;
         String sql = "UPDATE objetos SET estado = ? WHERE id = ?";
         try (Connection conexion = ConexionBD.obtenerConexion();
              PreparedStatement statement = conexion.prepareStatement(sql)) {
