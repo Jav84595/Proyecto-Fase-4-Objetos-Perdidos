@@ -1,23 +1,28 @@
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class DevolucionController {
     private final ObjetoController objetoController;
     private final DevolucionDAO devolucionDAO;
     private final DevolucionView view;
+    private final Supplier<Usuario> usuarioActual;
 
     public DevolucionController(
             ObjetoController objetoController,
             DevolucionDAO devolucionDAO,
-            DevolucionView view) {
+            DevolucionView view, Supplier<Usuario> usuarioActual) {
+        this.usuarioActual = usuarioActual;
         this.objetoController = objetoController;
         this.devolucionDAO = devolucionDAO;
         this.view = view;
         view.agregarDevolucionListener(e -> registrarDesdeVista());
     }
 
+    // Valida la existencia y disponibilidad del objeto y que se aportaron datos.
+    // No constituye una comprobacion independiente de la identidad del propietario.
     public boolean verificarPropietario(int objetoId, String verificacion) {
-        if (objetoId <= 0 || verificacion == null || verificacion.trim().isEmpty()) {
+        if (objetoId <= 0 || esVacio(verificacion)) {
             return false;
         }
         Objeto objeto = objetoController.buscarPorId(objetoId);
@@ -25,7 +30,12 @@ public class DevolucionController {
     }
 
     public boolean registrarDevolucion(int objetoId, String propietario, String verificacion) {
-        if (propietario == null || propietario.trim().isEmpty()
+        return false; // La confirmacion explicita es obligatoria.
+    }
+
+    public boolean registrarDevolucion(int objetoId, String propietario, String verificacion, boolean confirmado) {
+        Usuario responsable = usuarioActual == null ? null : usuarioActual.get();
+        if (responsable == null || !confirmado || esVacio(propietario)
                 || !verificarPropietario(objetoId, verificacion)) {
             return false;
         }
@@ -35,9 +45,9 @@ public class DevolucionController {
                 objetoId,
                 propietario.trim(),
                 verificacion.trim(),
-                LocalDate.now()
+                LocalDate.now(),
+                responsable.getNombreUsuario()
         );
-
         return devolucionDAO.registrarDevolucion(devolucion);
     }
 
@@ -46,32 +56,61 @@ public class DevolucionController {
     }
 
     public Devolucion buscarDevolucionPorId(int id) {
-        if (id <= 0) {
-            return null;
-        }
-        return devolucionDAO.buscarPorId(id);
+        return id > 0 ? devolucionDAO.buscarPorId(id) : null;
+    }
+
+    private static boolean esVacio(String valor) {
+        return valor == null || valor.trim().isEmpty();
     }
 
     private void registrarDesdeVista() {
+        if (usuarioActual == null || usuarioActual.get() == null) {
+            view.mostrarMensaje("Debe iniciar sesion para registrar devoluciones.");
+            return;
+        }
+        String idIngresado = view.getObjetoId();
+        String propietario = view.getPropietario();
+        String verificacion = view.getVerificacion();
+
+        if (esVacio(idIngresado) || esVacio(propietario) || esVacio(verificacion)) {
+            view.mostrarMensaje("Complete el ID, el propietario y los datos de verificacion.");
+            return;
+        }
+
+        final int objetoId;
         try {
-            int objetoId = Integer.parseInt(view.getObjetoId());
-            boolean registrada = registrarDevolucion(
-                    objetoId,
-                    view.getPropietario(),
-                    view.getVerificacion()
-            );
-
-            view.mostrarMensaje(
-                    registrada
-                    ? "Devolución registrada correctamente. El objeto ahora está DEVUELTO."
-                    : "No se pudo registrar la devolución. Verifique el ID, el estado del objeto y los datos ingresados."
-            );
-
-            if (registrada) {
-                view.limpiarCampos();
-            }
+            objetoId = Integer.parseInt(idIngresado);
         } catch (NumberFormatException e) {
-            view.mostrarMensaje("El ID del objeto debe ser un número entero válido.");
+            view.mostrarMensaje("El ID del objeto debe ser un numero entero valido.");
+            return;
+        }
+
+        if (objetoId <= 0) {
+            view.mostrarMensaje("El ID del objeto debe ser mayor que cero.");
+            return;
+        }
+
+        Objeto objeto = objetoController.buscarPorId(objetoId);
+        if (objeto == null) {
+            view.mostrarMensaje("No existe un objeto registrado con ese ID.");
+            return;
+        }
+        if (!Objeto.ESTADO_DISPONIBLE.equals(objeto.getEstado())) {
+            view.mostrarMensaje("El objeto no esta disponible para devolucion.");
+            return;
+        }
+
+        if (!view.confirmarVerificacion(objeto)) {
+            view.mostrarMensaje("Devolucion cancelada: no se confirmo la verificacion del reclamante.");
+            return;
+        }
+
+        boolean registrada = registrarDevolucion(objetoId, propietario, verificacion, true);
+        view.mostrarMensaje(registrada
+                ? "Devolucion registrada correctamente. El objeto ahora esta DEVUELTO."
+                : "No se pudo registrar la devolucion. Compruebe que el objeto siga disponible.");
+        if (registrada) {
+            view.limpiarCampos();
         }
     }
 }

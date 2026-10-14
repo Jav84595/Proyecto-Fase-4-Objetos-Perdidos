@@ -27,17 +27,42 @@ public class DevolucionDAO {
         try (Connection conexion = ConexionBD.obtenerConexion();
              Statement statement = conexion.createStatement()) {
             statement.execute(sql);
+            boolean existe = false;
+            try (ResultSet columnas = statement.executeQuery("PRAGMA table_info(devoluciones)")) {
+                while (columnas.next()) {
+                    if ("usuario_responsable".equalsIgnoreCase(columnas.getString("name"))) {
+                        existe = true;
+                        break;
+                    }
+                }
+            }
+            if (!existe) {
+                statement.execute("ALTER TABLE devoluciones ADD COLUMN usuario_responsable TEXT");
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("No se pudo crear la tabla de devoluciones.", e);
         }
     }
 
     public boolean registrarDevolucion(Devolucion devolucion) {
+        // La capa de persistencia tambien valida sus entradas: puede invocarse
+        // desde otros controladores o pruebas sin pasar por la interfaz.
+        if (devolucion == null || devolucion.getObjetoId() <= 0
+                || devolucion.getNombrePropietario() == null
+                || devolucion.getNombrePropietario().trim().isEmpty()
+                || devolucion.getInformacionVerificacion() == null
+                || devolucion.getInformacionVerificacion().trim().isEmpty()
+                || devolucion.getUsuarioResponsable() == null
+                || devolucion.getUsuarioResponsable().trim().isEmpty()
+                || devolucion.getFechaDevolucion() == null
+                || devolucion.getFechaDevolucion().isAfter(LocalDate.now())) {
+            return false;
+        }
         String consultarObjeto = "SELECT estado FROM objetos WHERE id = ?";
         String insertarDevolucion =
                 "INSERT INTO devoluciones "
-                + "(objeto_id, nombre_propietario, informacion_verificacion, fecha_devolucion) "
-                + "VALUES (?, ?, ?, ?)";
+                + "(objeto_id, nombre_propietario, informacion_verificacion, fecha_devolucion, usuario_responsable) "
+                + "VALUES (?, ?, ?, ?, ?)";
         String actualizarObjeto =
                 "UPDATE objetos SET estado = ? WHERE id = ? AND estado = ?";
 
@@ -57,9 +82,10 @@ public class DevolucionDAO {
 
                 try (PreparedStatement insercion = conexion.prepareStatement(insertarDevolucion)) {
                     insercion.setInt(1, devolucion.getObjetoId());
-                    insercion.setString(2, devolucion.getNombrePropietario());
-                    insercion.setString(3, devolucion.getInformacionVerificacion());
+                    insercion.setString(2, devolucion.getNombrePropietario().trim());
+                    insercion.setString(3, devolucion.getInformacionVerificacion().trim());
                     insercion.setString(4, devolucion.getFechaDevolucion().toString());
+                    insercion.setString(5, devolucion.getUsuarioResponsable().trim());
                     if (insercion.executeUpdate() != 1) {
                         conexion.rollback();
                         return false;
@@ -98,7 +124,7 @@ public class DevolucionDAO {
     public List<Devolucion> consultarTodas() {
         List<Devolucion> devoluciones = new ArrayList<>();
         String sql =
-                "SELECT id, objeto_id, nombre_propietario, informacion_verificacion, fecha_devolucion "
+                "SELECT id, objeto_id, nombre_propietario, informacion_verificacion, fecha_devolucion, usuario_responsable "
                 + "FROM devoluciones ORDER BY id";
 
         try (Connection conexion = ConexionBD.obtenerConexion();
@@ -114,8 +140,9 @@ public class DevolucionDAO {
     }
 
     public Devolucion buscarPorId(int id) {
+        if (id <= 0) return null;
         String sql =
-                "SELECT id, objeto_id, nombre_propietario, informacion_verificacion, fecha_devolucion "
+                "SELECT id, objeto_id, nombre_propietario, informacion_verificacion, fecha_devolucion, usuario_responsable "
                 + "FROM devoluciones WHERE id = ?";
 
         try (Connection conexion = ConexionBD.obtenerConexion();
@@ -138,7 +165,8 @@ public class DevolucionDAO {
                 resultado.getInt("objeto_id"),
                 resultado.getString("nombre_propietario"),
                 resultado.getString("informacion_verificacion"),
-                LocalDate.parse(resultado.getString("fecha_devolucion"))
+                LocalDate.parse(resultado.getString("fecha_devolucion")),
+                resultado.getString("usuario_responsable")
         );
     }
 }
