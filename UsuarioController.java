@@ -2,12 +2,33 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class UsuarioController {
     private final UsuarioDAO usuarioDAO;
     private final RegistroUsuarioView registroView;
     private final LoginView loginView;
     private Usuario usuarioActivo;
+    private final List<Consumer<Usuario>> observadoresSesion = new ArrayList<>();
+
+    // Permite que Main y otros controladores reaccionen a cambios de sesion.
+    public void agregarObservadorSesion(Consumer<Usuario> observador) {
+        if (observador != null) observadoresSesion.add(observador);
+    }
+
+    private void notificarCambioSesion() {
+        for (Consumer<Usuario> observador : new ArrayList<>(observadoresSesion)) {
+            observador.accept(usuarioActivo);
+        }
+    }
+
+    // Los controladores protegidos pueden consultar esta autorizacion.
+    public boolean autorizarOperacion() {
+        return haySesionActiva();
+    }
+
 
     public UsuarioController(
             UsuarioDAO usuarioDAO,
@@ -48,6 +69,9 @@ public class UsuarioController {
     }
 
     public boolean iniciarSesion(String nombreUsuario, String contrasena) {
+        if (haySesionActiva()){
+            return false;
+        }
         if (nombreUsuario == null || nombreUsuario.trim().isEmpty()
                 || contrasena == null || contrasena.isEmpty()) {
             return false;
@@ -61,6 +85,7 @@ public class UsuarioController {
 
             if (usuario.getContrasenaHash().equals(generarHash(contrasena))) {
                 usuarioActivo = usuario;
+                notificarCambioSesion();
                 return true;
             }
         } catch (SQLException e) {
@@ -70,7 +95,9 @@ public class UsuarioController {
     }
 
     public void cerrarSesion() {
+        if (usuarioActivo == null) return;
         usuarioActivo = null;
+        notificarCambioSesion();
     }
 
     public boolean haySesionActiva() {
